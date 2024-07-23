@@ -42,15 +42,17 @@ def fmkg(phi, rho, thr1=0.95, thr2=0.9):
   mkl = mkl.reshape(nummkg2, rho.shape[1])
   mkh = pd.DataFrame(mkh, columns=ctpnm)
   mkl = pd.DataFrame(mkl, columns=ctpnm)
+  print(mkh)
+  print(mkl)
   return mkh, mkl
 
 
-def get_expression(rdata, qdata, rlabel, thrh=0.95, thrl=0.9, normalization=True, marker=True):
+def get_expression(rdata, qdata, vdata, rlabel, thrh=0.95, thrl=0.9, normalization=True, marker=True):
     # calculate sum of cell type
     rulabel = rlabel.iloc[:, 0].unique()
     rdt = pd.DataFrame(data=None, columns=None)
     for l in rulabel:
-      rdata_l = rdata.iloc[:, rlabel[(rlabel["celltype"] == l)].index.tolist()] #row value in rlabel, is column in rdata
+      rdata_l = rdata.iloc[:, rlabel[(rlabel["diagnosis"] == l)].index.tolist()] #row value in rlabel, is column in rdata
       zs = rdata_l.apply(lambda x: x.sum(), axis=1)
       rdt = pd.concat([rdt, pd.DataFrame(data=zs, columns=[l])], axis=1)
       
@@ -60,16 +62,20 @@ def get_expression(rdata, qdata, rlabel, thrh=0.95, thrl=0.9, normalization=True
         rdt_df = rdt
         rdata_df = rdata
         qdata_df = qdata
+        vdata_df = vdata
         rdt = np.array(rdt_df, dtype=np.float32)
         rdata = np.array(rdata_df, dtype=np.float32)
         qdata = np.array(qdata_df, dtype=np.float32)
+        vdata = np.array(vdata_df, dtype=np.float32)
         rdt = np.divide(rdt, np.sum(rdt, axis=0, keepdims=True)) * 10000
         rdata = np.log2(np.divide(rdata, np.sum(rdata, axis=0, keepdims=True)) * 10000 + 1)
         qdata = np.log2(np.divide(qdata, np.sum(qdata, axis=0, keepdims=True)) * 10000 + 1)
+        vdata = np.log2(np.divide(vdata, np.sum(vdata, axis=0, keepdims=True)) * 10000 + 1)
 
         rdt = pd.DataFrame(data=rdt, columns=rdt_df.columns, index=rdt_df.index)
         rdata = pd.DataFrame(data=rdata, columns=rdata_df.columns, index=rdata_df.index)
         qdata = pd.DataFrame(data=qdata, columns=qdata_df.columns, index=qdata_df.index)
+        vdata = pd.DataFrame(data=vdata, columns=vdata_df.columns, index=vdata_df.index)
     #print(rdt.head())
     #print(rdata.head())
     # match gene ensembl ids between the query data and the reference data
@@ -82,6 +88,7 @@ def get_expression(rdata, qdata, rlabel, thrh=0.95, thrl=0.9, normalization=True
       else:
         gid = gid + [nm[i]]
     qdata = qdata.loc[gid, :]
+    vdata = vdata.loc[gid, :]
     rdata = rdata.loc[gid, :]
     rdt = rdt.loc[gid, :]
 
@@ -91,6 +98,7 @@ def get_expression(rdata, qdata, rlabel, thrh=0.95, thrl=0.9, normalization=True
         train_x = rdata
         train_y = rlabel
         test_x = qdata
+        val_x = vdata
     else:
         # calculate important genes
         phi = fphi(rdt)
@@ -102,4 +110,5 @@ def get_expression(rdata, qdata, rlabel, thrh=0.95, thrl=0.9, normalization=True
         train_x = rdata.loc[mkg, :]
         train_y = rlabel
         test_x = qdata.loc[mkg, :]
-    return train_x, test_x, train_y
+        val_x = vdata.loc[mkg, :]
+    return train_x, test_x, val_x, train_y

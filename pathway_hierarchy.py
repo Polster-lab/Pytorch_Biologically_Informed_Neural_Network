@@ -141,7 +141,7 @@ def gene_mapping(gene, df):
     return mappingdf
 
 
-def get_masking(pathway_names, pathway_genes, relations_file_name, train_x, test_x, train_y, datatype, species='mouse', n_hidden=5):
+def get_masking(pathway_names, pathway_genes, relations_file_name, train_x, test_x, val_x, train_y, datatype, species='mouse', n_hidden=5):
     reactome_net = ReactomeNetwork(pathway_names, pathway_genes, relations_file_name, species)
     genes_df = reactome_net.reactome.pathway_genes
     genes_df = gene_mapping(train_x.index.tolist(), genes_df)
@@ -204,7 +204,8 @@ def get_masking(pathway_names, pathway_genes, relations_file_name, train_x, test
     gene_in_network = list(masking[n_hidden].columns)
     train_x = train_x.loc[gene_in_network, :]
     test_x = test_x.loc[gene_in_network, :]
+    val_x = val_x.loc[gene_in_network, :]
     for i in range(len(masking) - 1):
         masking[i] = np.array(masking[i + 1])
     del masking[len(masking) - 1]
-    return masking, layers_node, train_x, test_x
+    return masking, layers_node, train_x, test_x,val_x
