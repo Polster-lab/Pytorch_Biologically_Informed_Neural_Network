@@ -71,6 +71,7 @@ class ReactomeNetwork():
             abbr = 'HSA'
         elif self.reactome.species == 'rat':
             abbr = 'RNO'
+        print(abbr)
         species_hierarchy = hierarchy[hierarchy['child'].str.contains(abbr)]
         net = nx.from_pandas_edgelist(species_hierarchy, 'child', 'parent', create_using=nx.DiGraph())
         net.name = 'reactome'
