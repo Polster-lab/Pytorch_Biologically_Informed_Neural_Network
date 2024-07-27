@@ -114,7 +114,8 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
             best_val_accuracy = val_accuracy
             epochs_no_improve = 0
         # Save the best model
-            torch.save(model.state_dict(), f'{model_save_dir}{date_string}/best_model_{output_layer}.pth')
+            torch.save(model, f'{model_save_dir}{date_string}/best_model_{output_layer}.pth')
+            torch.save(model.state_dict(), f'{model_save_dir}{date_string}/best_model_{output_layer}_state_dict.pth')
             print('Model saved.')
         else:
             epochs_no_improve += 1
