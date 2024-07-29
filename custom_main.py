@@ -38,6 +38,7 @@ def evaluate(model, dataloader):
     correct = 0
     total = 0
     predicted_list = []
+    probability_list = []
     labels_list = []
     criterion = nn.BCEWithLogitsLoss()
     loss = 0
@@ -45,18 +46,20 @@ def evaluate(model, dataloader):
         for features, labels in dataloader:
             outputs = model(features)
             #print(outputs)
+            probability = torch.sigmoid(outputs.data)
             predicted = torch.round(torch.sigmoid(outputs.data))
             #print(outputs)
             #print(predicted)
             loss += criterion(outputs, labels)
             #_, predicted = torch.sigmoid(outputs.data)
-            predicted_list.append(predicted)
-            labels_list.append(labels)
+            predicted_list.extend(predicted)
+            labels_list.extend(labels)
+            probability_list.extend(probability)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     #print(total)
     accuracy = 100 * correct / total
-    return accuracy, loss, predicted_list, labels_list
+    return accuracy, loss, predicted_list, labels_list, probability_list
 
 
 
@@ -80,7 +83,7 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
 
     with open(csv_file_path, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Epoch', 'Loss', 'Train_accuracy', 'Val_accuracy'])
+        writer.writerow(['Epoch', 'Train_Loss', 'Train_accuracy','Validation_Loss','Val_accuracy'])
 
     for epoch in tqdm(range(num_epochs)):
         if early_stop:
@@ -102,13 +105,13 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
             
             
         
-        train_accuracy, train_loss, predicted_list_train, labels_list_train = evaluate(model, train_dataloader)
-        val_accuracy, val_loss, predicted_list_val, labels_list_val = evaluate(model, val_dataloader)
+        train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model, train_dataloader)
+        val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model, val_dataloader)
         #scheduler.step(val_accuracy)
         print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_loss.item():.4f}, Train_accuracy: {train_accuracy}, Val Loss: {val_loss.item():.4f}, Val_accuracy: {val_accuracy}')
         with open(csv_file_path, mode='a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([epoch + 1, loss.item(), train_accuracy, val_accuracy])
+            writer.writerow([epoch + 1, loss.item(), train_accuracy, val_loss.item(), val_accuracy])
         
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
@@ -126,12 +129,21 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
             print("Early stopping triggered")'''
         
     
-    train_accuracy, train_loss, predicted_list_train, labels_list_train = evaluate(model, train_dataloader)
-    val_accuracy, val_loss, predicted_list_val, labels_list_val = evaluate(model, val_dataloader)
-    test_accuracy, test_loss, predicted_list_test, labels_list_test = evaluate(model, test_dataloader)
+    train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model, train_dataloader)
+    val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model, val_dataloader)
+    test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(model, test_dataloader)
     print('Test Accucary', test_accuracy)
     output_train = (predicted_list_train, labels_list_train)
     output_val = (predicted_list_val, labels_list_val)
+
+    labels_list_test = [m.item() for m in labels_list_test]
+    predicted_list_test = [m.item() for m in predicted_list_test]
+    test_probability_list = [m.item() for m in test_probability_list]
+
+
+    test_df = pd.DataFrame({'true_y': labels_list_test, 'pred_y': predicted_list_test, 'probabilty': test_probability_list})
+    csv_file_path = f'{model_save_dir}{date_string}/test_log_{output_layer}.csv'
+    test_df.to_csv(csv_file_path)
     
     return output_train, output_val,model
 
