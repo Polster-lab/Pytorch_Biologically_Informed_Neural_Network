@@ -1,6 +1,7 @@
 import os
 import torch
 from tqdm import tqdm
+import numpy as np
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, DataLoader
 import argparse
@@ -12,9 +13,17 @@ import yaml
 from custom_neural_network import *
 from datetime import datetime
 import csv
+import pickle
+import random
+random.seed(0)
+np.random.seed(0)
+
 
 # Define the file path for the CSV file
-
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 class TabularDataset(Dataset):
     def __init__(self, count_matrix, label):
@@ -64,10 +73,95 @@ def evaluate(model, dataloader):
 
 
 
-def model(train_dataloader , val_dataloader, test_dataloader, layers_node, masking, output_layer,model_save_dir, date_string, learning_rate=0.001, num_epochs=50, weight_decay = 0):
 
-    model = CustomNetwork(layers_node, output_layer, masking)
-    optimizer = optim.AdamW(model.parameters(), lr=learning_rate,weight_decay = weight_decay )  # Using SGD with momentum
+def model_fc(train_dataloader , val_dataloader, test_dataloader, test_cell_id, layers_node, masking, output_layer,model_save_dir, date_string, learning_rate=0.001, num_epochs=50, weight_decay = 0):
+
+    model_nn = CustomfcNetwork(layers_node, output_layer, masking)
+    optimizer = optim.AdamW(model_nn.parameters(), lr=learning_rate,weight_decay = weight_decay )  # Using SGD with momentum
+    criterion = nn.BCEWithLogitsLoss()
+    scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.1, patience=5, verbose=True)
+    patience = 20
+    best_val_accuracy = 0.0
+    epochs_no_improve = 0
+    early_stop = False
+    csv_file_path = f'{model_save_dir}{date_string}/fc_training_log_{output_layer}.csv'
+
+    try:
+        os.makedirs(f'{model_save_dir}{date_string}')
+    except:
+        print(('...'))
+
+    with open(csv_file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Epoch', 'Train_Loss', 'Train_accuracy','Validation_Loss','Val_accuracy'])
+
+    for epoch in tqdm(range(num_epochs)):
+        if early_stop:
+            print("Early stopping")
+            break
+        epoch_cost = 0.
+        
+        total_loss = 0
+        for batch_features,batch_targets in train_dataloader:
+            outputs = model_nn(batch_features)
+            #print(outputs)
+            #print(batch_targets)
+            #print(outputs)
+            loss = criterion(outputs, batch_targets)
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            
+        
+        train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model_nn, train_dataloader)
+        val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model_nn, val_dataloader)
+        #scheduler.step(val_accuracy)
+        print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_loss.item():.4f}, Train_accuracy: {train_accuracy}, Val Loss: {val_loss.item():.4f}, Val_accuracy: {val_accuracy}')
+        with open(csv_file_path, mode='a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([epoch + 1, loss.item(), train_accuracy, val_loss.item(), val_accuracy])
+        
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            epochs_no_improve = 0
+        # Save the best model
+            torch.save(model_nn, f'{model_save_dir}{date_string}/fc_best_model_{output_layer}.pth')
+            torch.save(model_nn.state_dict(), f'{model_save_dir}{date_string}/fc_best_model_{output_layer}_state_dict.pth')
+            print('Model saved.')
+        else:
+            epochs_no_improve += 1
+    
+        # Early stopping
+        '''if epochs_no_improve >= patience:
+            early_stop = True
+            print("Early stopping triggered")'''
+        
+    
+    train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model_nn, train_dataloader)
+    val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model_nn, val_dataloader)
+    test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(model_nn, test_dataloader)
+    print('Test Accucary', test_accuracy)
+    output_train = (predicted_list_train, labels_list_train)
+    output_val = (predicted_list_val, labels_list_val)
+
+    labels_list_test = [m.item() for m in labels_list_test]
+    predicted_list_test = [m.item() for m in predicted_list_test]
+    test_probability_list = [m.item() for m in test_probability_list]
+
+
+    test_df = pd.DataFrame({'cell_id': test_cell_id, 'true_y': labels_list_test, 'pred_y': predicted_list_test, 'probabilty': test_probability_list})
+    csv_file_path = f'{model_save_dir}{date_string}/fc_test_log_{output_layer}.csv'
+    test_df.to_csv(csv_file_path)
+    return output_train, output_val,model_nn
+
+
+
+def model(train_dataloader , val_dataloader, test_dataloader, test_cell_id, layers_node, masking, output_layer,model_save_dir, date_string, learning_rate=0.001, num_epochs=50, weight_decay = 0):
+
+    model_nn = CustomNetwork(layers_node, output_layer, masking)
+    optimizer = optim.AdamW(model_nn.parameters(), lr=learning_rate,weight_decay = weight_decay )  # Using SGD with momentum
     criterion = nn.BCEWithLogitsLoss()
     scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.1, patience=5, verbose=True)
     patience = 20
@@ -93,7 +187,7 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
         
         total_loss = 0
         for batch_features,batch_targets in train_dataloader:
-            outputs = model(batch_features)
+            outputs = model_nn(batch_features)
             #print(outputs)
             #print(batch_targets)
             #print(outputs)
@@ -105,8 +199,8 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
             
             
         
-        train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model, train_dataloader)
-        val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model, val_dataloader)
+        train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model_nn, train_dataloader)
+        val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model_nn, val_dataloader)
         #scheduler.step(val_accuracy)
         print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_loss.item():.4f}, Train_accuracy: {train_accuracy}, Val Loss: {val_loss.item():.4f}, Val_accuracy: {val_accuracy}')
         with open(csv_file_path, mode='a', newline='') as file:
@@ -117,8 +211,8 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
             best_val_accuracy = val_accuracy
             epochs_no_improve = 0
         # Save the best model
-            torch.save(model, f'{model_save_dir}{date_string}/best_model_{output_layer}.pth')
-            torch.save(model.state_dict(), f'{model_save_dir}{date_string}/best_model_{output_layer}_state_dict.pth')
+            torch.save(model_nn, f'{model_save_dir}{date_string}/best_model_{output_layer}.pth')
+            torch.save(model_nn.state_dict(), f'{model_save_dir}{date_string}/best_model_{output_layer}_state_dict.pth')
             print('Model saved.')
         else:
             epochs_no_improve += 1
@@ -129,9 +223,9 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
             print("Early stopping triggered")'''
         
     
-    train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model, train_dataloader)
-    val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model, val_dataloader)
-    test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(model, test_dataloader)
+    train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model_nn, train_dataloader)
+    val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model_nn, val_dataloader)
+    test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(model_nn, test_dataloader)
     print('Test Accucary', test_accuracy)
     output_train = (predicted_list_train, labels_list_train)
     output_val = (predicted_list_val, labels_list_val)
@@ -141,12 +235,11 @@ def model(train_dataloader , val_dataloader, test_dataloader, layers_node, maski
     test_probability_list = [m.item() for m in test_probability_list]
 
 
-    test_df = pd.DataFrame({'true_y': labels_list_test, 'pred_y': predicted_list_test, 'probabilty': test_probability_list})
+    test_df = pd.DataFrame({'cell_id': test_cell_id, 'true_y': labels_list_test, 'pred_y': predicted_list_test, 'probabilty': test_probability_list})
     csv_file_path = f'{model_save_dir}{date_string}/test_log_{output_layer}.csv'
     test_df.to_csv(csv_file_path)
     
-    return output_train, output_val,model
-
+    return output_train, output_val,model_nn
 def load_config(config_file):
     with open(config_file, 'r') as file:
         return yaml.safe_load(file)
@@ -166,7 +259,7 @@ def main():
     y_train = pd.read_csv(config['dataset']['y_train'])
     y_test = pd.read_csv(config['dataset']['y_test'])
     y_val = pd.read_csv(config['dataset']['y_val'])
-
+  
 
 
     r_data_tmp = train.T
@@ -200,7 +293,7 @@ def main():
                                                         config['pathways_network']['species'],
                                                         config['pathways_network']['n_hidden_layer'])
 
-
+    test_cell_id = list(test_x.T.index) 
     try:
         masking = list(masking.values())
         layers_node = list(layers_node.values())
@@ -211,11 +304,17 @@ def main():
     train_dataset = TabularDataset(train_x.T,train_y)
     val_dataset = TabularDataset(val_x.T,y_val)
     test_dataset = TabularDataset(test_x.T,y_test)  
+    
+    
 
+    dataloader_params = {
+    'batch_size': config['train']['batch_size'],
+    'shuffle': False
+    }
 
-    train_dataloader = DataLoader(train_dataset, batch_size=config['train']['batch_size'], shuffle=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=config['train']['batch_size'], shuffle= True)
-    val_dataloader = DataLoader(val_dataset, batch_size=config['train']['batch_size'], shuffle= True)
+    train_dataloader = DataLoader(train_dataset,**dataloader_params)
+    test_dataloader = DataLoader(test_dataset, **dataloader_params)
+    val_dataloader = DataLoader(val_dataset,**dataloader_params)
     # Example of iterating through the DataLoader
 
 
@@ -227,22 +326,47 @@ def main():
 
 # Format the date as a string
     date_string = datetime_string = now.strftime("%Y_%m_%d_%H_%M_%S")
+
+    try:
+        os.makedirs(f'{config['model_output']['model_save_dir']}{date_string}')
+    except:
+        print(('...'))
+
+   
+
     print('Training.........')
     for output_layer in range(2, len(masking) + 2):
         if config['gene_expression']['print_information']:
             print("Current sub-neural network has " + str(output_layer - 1) + " hidden layers.")
         output_train, output_val,model_dict[output_layer] = model(train_dataloader,
-                                            val_dataloader,test_dataloader,
+                                            val_dataloader,test_dataloader, test_cell_id,
                                             layers_node,
                                             masking,
                                             output_layer,
                                             model_save_dir = config['model_output']['model_save_dir'],date_string = date_string,
                                             learning_rate=config['train']['learning_rate'],num_epochs=config['train']['epochs'],weight_decay = config['train']['weight_decay']
-                                            )  
+                                        )  
+
+    print('tranining_fully_connected_layers:')
+    for output_layer in range(2, len(masking) + 2):
+        if config['gene_expression']['print_information']:
+            print("Current sub-neural network has " + str(output_layer - 1) + " hidden layers.")
+        output_train, output_val,model_dict[output_layer] = model_fc(train_dataloader,
+                                            val_dataloader,test_dataloader, test_cell_id,
+                                            layers_node,
+                                            masking,
+                                            output_layer,
+                                            model_save_dir = config['model_output']['model_save_dir'],date_string = date_string,
+                                            learning_rate=config['train']['learning_rate'],num_epochs=config['train']['epochs'],weight_decay = config['train']['weight_decay']
+                                        )  
+        
+    new_parameter = {'date_string': date_string}
+    config.update(new_parameter)
     save_path =   str(config['model_output']['model_save_dir'])+ date_string + '/config.yml'
     with open(save_path, 'w') as file:
         yaml.dump(config, file)
 
+    
                     
 
 if __name__ == "__main__":
