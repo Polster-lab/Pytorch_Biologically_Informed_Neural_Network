@@ -11,12 +11,20 @@ from pathway_hierarchy import *
 import pandas as pd
 import yaml
 from custom_neural_network import *
+from custom_fc_network import *
 from datetime import datetime
 import csv
 import pickle
 import random
 random.seed(0)
 np.random.seed(0)
+
+
+model_dct = dict()
+def hook_fn(module, input, output):
+    global model_dct
+    model_dct[module.__class__.__name__]= (input,output)
+
 
 
 # Define the file path for the CSV file
@@ -70,6 +78,11 @@ def evaluate(model, dataloader):
     accuracy = 100 * correct / total
     return accuracy, loss, predicted_list, labels_list, probability_list
 
+def save_model(model_nn,model_path, model_state_dict_path):
+    
+    model_nn.eval()
+    torch.save(model_nn, model_path)
+    torch.save(model_nn.state_dict(), model_state_dict_path)
 
 
 
@@ -127,8 +140,11 @@ def model_fc(train_dataloader , val_dataloader, test_dataloader, test_cell_id, l
             best_val_accuracy = val_accuracy
             epochs_no_improve = 0
         # Save the best model
-            torch.save(model_nn, f'{model_save_dir}{date_string}/fc_best_model_{output_layer}.pth')
-            torch.save(model_nn.state_dict(), f'{model_save_dir}{date_string}/fc_best_model_{output_layer}_state_dict.pth')
+            model_path = f'{model_save_dir}{date_string}/fc_best_model_{output_layer}.pth'
+            model_state_dict_path = f'{model_save_dir}{date_string}/fc_best_model_{output_layer}_state_dict.pth'
+            save_model(model_nn, model_path, model_state_dict_path)
+            #torch.save(model_nn, f'{model_save_dir}{date_string}/fc_best_model_{output_layer}.pth')
+            #torch.save(model_nn.state_dict(), f'{model_save_dir}{date_string}/fc_best_model_{output_layer}_state_dict.pth')
             print('Model saved.')
         else:
             epochs_no_improve += 1
@@ -154,6 +170,7 @@ def model_fc(train_dataloader , val_dataloader, test_dataloader, test_cell_id, l
     test_df = pd.DataFrame({'cell_id': test_cell_id, 'true_y': labels_list_test, 'pred_y': predicted_list_test, 'probabilty': test_probability_list})
     csv_file_path = f'{model_save_dir}{date_string}/fc_test_log_{output_layer}.csv'
     test_df.to_csv(csv_file_path)
+    #torch.save(model_nn, f'{model_save_dir}{date_string}/fc_last_epoch_model_{output_layer}.pth')
     return output_train, output_val,model_nn
 
 
@@ -187,13 +204,15 @@ def model(train_dataloader , val_dataloader, test_dataloader, test_cell_id, laye
         
         total_loss = 0
         for batch_features,batch_targets in train_dataloader:
-            outputs = model_nn(batch_features)
+            
             #print(outputs)
             #print(batch_targets)
             #print(outputs)
-            loss = criterion(outputs, batch_targets)
+            
             
             optimizer.zero_grad()
+            outputs = model_nn(batch_features)
+            loss = criterion(outputs, batch_targets)
             loss.backward()
             optimizer.step()
             
@@ -211,8 +230,11 @@ def model(train_dataloader , val_dataloader, test_dataloader, test_cell_id, laye
             best_val_accuracy = val_accuracy
             epochs_no_improve = 0
         # Save the best model
-            torch.save(model_nn, f'{model_save_dir}{date_string}/best_model_{output_layer}.pth')
-            torch.save(model_nn.state_dict(), f'{model_save_dir}{date_string}/best_model_{output_layer}_state_dict.pth')
+            model_path = f'{model_save_dir}{date_string}/best_model_{output_layer}.pth'
+            model_state_dict_path = f'{model_save_dir}{date_string}/best_model_{output_layer}_state_dict.pth'
+            save_model(model_nn, model_path, model_state_dict_path)
+            #torch.save(model_nn, f'{model_save_dir}{date_string}/best_model_{output_layer}.pth')
+            #torch.save(model_nn.state_dict(), f'{model_save_dir}{date_string}/best_model_{output_layer}_state_dict.pth')
             print('Model saved.')
         else:
             epochs_no_improve += 1
@@ -238,8 +260,10 @@ def model(train_dataloader , val_dataloader, test_dataloader, test_cell_id, laye
     test_df = pd.DataFrame({'cell_id': test_cell_id, 'true_y': labels_list_test, 'pred_y': predicted_list_test, 'probabilty': test_probability_list})
     csv_file_path = f'{model_save_dir}{date_string}/test_log_{output_layer}.csv'
     test_df.to_csv(csv_file_path)
-    
+    #torch.save(model_nn, f'{model_save_dir}{date_string}/last_epoch_model_{output_layer}.pth')
     return output_train, output_val,model_nn
+
+
 def load_config(config_file):
     with open(config_file, 'r') as file:
         return yaml.safe_load(file)
@@ -320,7 +344,8 @@ def main():
 
     pred_y_df = pd.DataFrame(data=0, index=test_x.columns, columns=list(range(2, len(masking) + 2)))
     train_y_df = pd.DataFrame(data=0, index=train_x.columns, columns=list(range(2, len(masking) + 2)))
-    model_dict = dict()
+    model_dict_sparse = dict()
+    model_dict_fc = dict()
     activation_output = {}
     now = datetime.now()
 
@@ -338,7 +363,7 @@ def main():
     for output_layer in range(2, len(masking) + 2):
         if config['gene_expression']['print_information']:
             print("Current sub-neural network has " + str(output_layer - 1) + " hidden layers.")
-        output_train, output_val,model_dict[output_layer] = model(train_dataloader,
+        output_train, output_val,model_dict_sparse[output_layer] = model(train_dataloader,
                                             val_dataloader,test_dataloader, test_cell_id,
                                             layers_node,
                                             masking,
@@ -351,7 +376,7 @@ def main():
     for output_layer in range(2, len(masking) + 2):
         if config['gene_expression']['print_information']:
             print("Current sub-neural network has " + str(output_layer - 1) + " hidden layers.")
-        output_train, output_val,model_dict[output_layer] = model_fc(train_dataloader,
+        output_train, output_val,model_dict_fc[output_layer] = model_fc(train_dataloader,
                                             val_dataloader,test_dataloader, test_cell_id,
                                             layers_node,
                                             masking,
@@ -365,12 +390,16 @@ def main():
     save_path =   str(config['model_output']['model_save_dir'])+ date_string + '/config.yml'
     with open(save_path, 'w') as file:
         yaml.dump(config, file)
-
     
-                    
+    for j,i in model_dict_sparse.items():
+         test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(i, test_dataloader)
+         print(j)
+         print(test_accuracy)   
+    
 
 if __name__ == "__main__":
     main()
+   
 
 
                                             
