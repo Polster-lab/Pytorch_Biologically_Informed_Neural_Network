@@ -209,4 +209,4 @@ def get_masking(pathway_names, pathway_genes, relations_file_name, train_x, test
     for i in range(len(masking) - 1):
         masking[i] = np.array(masking[i + 1])
     del masking[len(masking) - 1]
-    return masking, layers_node, train_x, test_x, val_x
+    return masking, layers_node, train_x, test_x,val_x
