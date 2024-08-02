@@ -14,6 +14,7 @@ from custom_neural_network import *
 from custom_fc_network import *
 from datetime import datetime
 import csv
+import copy
 import pickle
 import random
 random.seed(0)
@@ -21,9 +22,22 @@ np.random.seed(0)
 
 
 model_dct = dict()
-def hook_fn(module, input, output):
+
+# Hook function
+def hook_fn(module, input, output, layer_name):
     global model_dct
-    model_dct[module.__class__.__name__]= (input,output)
+    input_list = [i.detach().cpu().numpy().tolist() for i in input]
+    output_list = output.detach().cpu().numpy().tolist()
+    
+    # If the layer name is not in the dictionary, create a new list for it
+    if layer_name not in model_dct:
+        model_dct[layer_name] = []
+
+    # Append the activations to the corresponding layer list
+    model_dct[layer_name].append({
+        'input': input_list,
+        'output': output_list
+    })
 
 
 
@@ -143,6 +157,7 @@ def model_fc(train_dataloader , val_dataloader, test_dataloader, test_cell_id, l
             model_path = f'{model_save_dir}{date_string}/fc_best_model_{output_layer}.pth'
             model_state_dict_path = f'{model_save_dir}{date_string}/fc_best_model_{output_layer}_state_dict.pth'
             save_model(model_nn, model_path, model_state_dict_path)
+            best_model_nn = copy.deepcopy(model_nn)
             #torch.save(model_nn, f'{model_save_dir}{date_string}/fc_best_model_{output_layer}.pth')
             #torch.save(model_nn.state_dict(), f'{model_save_dir}{date_string}/fc_best_model_{output_layer}_state_dict.pth')
             print('Model saved.')
@@ -155,9 +170,9 @@ def model_fc(train_dataloader , val_dataloader, test_dataloader, test_cell_id, l
             print("Early stopping triggered")'''
         
     
-    train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model_nn, train_dataloader)
-    val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model_nn, val_dataloader)
-    test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(model_nn, test_dataloader)
+    train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(best_model_nn, train_dataloader)
+    val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(best_model_nn, val_dataloader)
+    test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(best_model_nn, test_dataloader)
     print('Test Accucary', test_accuracy)
     output_train = (predicted_list_train, labels_list_train)
     output_val = (predicted_list_val, labels_list_val)
@@ -171,7 +186,7 @@ def model_fc(train_dataloader , val_dataloader, test_dataloader, test_cell_id, l
     csv_file_path = f'{model_save_dir}{date_string}/fc_test_log_{output_layer}.csv'
     test_df.to_csv(csv_file_path)
     #torch.save(model_nn, f'{model_save_dir}{date_string}/fc_last_epoch_model_{output_layer}.pth')
-    return output_train, output_val,model_nn
+    return output_train, output_val,best_model_nn
 
 
 
@@ -233,6 +248,7 @@ def model(train_dataloader , val_dataloader, test_dataloader, test_cell_id, laye
             model_path = f'{model_save_dir}{date_string}/best_model_{output_layer}.pth'
             model_state_dict_path = f'{model_save_dir}{date_string}/best_model_{output_layer}_state_dict.pth'
             save_model(model_nn, model_path, model_state_dict_path)
+            best_model_nn = copy.deepcopy(model_nn)
             #torch.save(model_nn, f'{model_save_dir}{date_string}/best_model_{output_layer}.pth')
             #torch.save(model_nn.state_dict(), f'{model_save_dir}{date_string}/best_model_{output_layer}_state_dict.pth')
             print('Model saved.')
@@ -245,9 +261,9 @@ def model(train_dataloader , val_dataloader, test_dataloader, test_cell_id, laye
             print("Early stopping triggered")'''
         
     
-    train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(model_nn, train_dataloader)
-    val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(model_nn, val_dataloader)
-    test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(model_nn, test_dataloader)
+    train_accuracy, train_loss, predicted_list_train, labels_list_train, train_probability_list = evaluate(best_model_nn, train_dataloader)
+    val_accuracy, val_loss, predicted_list_val, labels_list_val, val_probability_list = evaluate(best_model_nn, val_dataloader)
+    test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(best_model_nn, test_dataloader)
     print('Test Accucary', test_accuracy)
     output_train = (predicted_list_train, labels_list_train)
     output_val = (predicted_list_val, labels_list_val)
@@ -261,7 +277,7 @@ def model(train_dataloader , val_dataloader, test_dataloader, test_cell_id, laye
     csv_file_path = f'{model_save_dir}{date_string}/test_log_{output_layer}.csv'
     test_df.to_csv(csv_file_path)
     #torch.save(model_nn, f'{model_save_dir}{date_string}/last_epoch_model_{output_layer}.pth')
-    return output_train, output_val,model_nn
+    return output_train, output_val,best_model_nn
 
 
 def load_config(config_file):
@@ -390,12 +406,46 @@ def main():
     save_path =   str(config['model_output']['model_save_dir'])+ date_string + '/config.yml'
     with open(save_path, 'w') as file:
         yaml.dump(config, file)
+
+    dataloader_params = {
+    'batch_size': 1,
+    'shuffle': False
+    }
+
+    train_dataloader = DataLoader(train_dataset,**dataloader_params)
+    test_dataloader = DataLoader(test_dataset, **dataloader_params)
+    val_dataloader = DataLoader(val_dataset,**dataloader_params)
     
     for j,i in model_dict_sparse.items():
-         test_accuracy, test_loss, predicted_list_test, labels_list_test, test_probability_list = evaluate(i, test_dataloader)
-         print(j)
-         print(test_accuracy)   
-    
+        
+        for name, layer in enumerate(i.children()):
+            layer_name = 'fc'+str(name+1)
+            layer.register_forward_hook(lambda module, input, output, name=layer_name: hook_fn(module, input, output, name))
+
+
+
+        accuracy, loss, predicted_list, labels_list, probability_list = evaluate(i, test_dataloader)
+        print(j)
+        print(f'Test Accuracy: {accuracy}')   
+        accuracy, loss, predicted_list, labels_list, probability_list = evaluate(i, train_dataloader)
+        print(f'Train Accuracy: {accuracy}')   
+        accuracy, loss, predicted_list, labels_list, probability_list = evaluate(i, val_dataloader)
+        print(f'Validation Accuracy: {accuracy}') 
+
+        with open('model_activations_train_test.csv', 'w', newline='') as csvfile:
+            fieldnames = ['layer', 'input', 'output']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            writer.writeheader()
+            for layer_name, activations in model_dct.items():
+                for activation in activations:
+                    writer.writerow({
+                        'layer': layer_name,
+                        'input': activation['input'],
+                        'output': activation['output']
+                    })
+        
+        break
 
 if __name__ == "__main__":
     main()
