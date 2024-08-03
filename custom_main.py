@@ -322,7 +322,7 @@ def main():
 
 
     print('Getting Masking.........')
-    masking, layers_node, train_x, test_x,val_x = get_masking(config['pathways_network']['pathway_names'],
+    masking, masking_df, layers_node, train_x, test_x,val_x = get_masking(config['pathways_network']['pathway_names'],
                                                         pathway_genes,
                                                         config['pathways_network']['pathway_relation'],
                                                         train_x,
@@ -407,6 +407,10 @@ def main():
     with open(save_path, 'w') as file:
         yaml.dump(config, file)
 
+        
+    for i in range(len(masking_df)):
+        masking_df[i].to_csv(str(config['model_output']['model_save_dir'])+ date_string+ '/' +f'masking_df_{i}.csv')
+    
     dataloader_params = {
     'batch_size': 1,
     'shuffle': False

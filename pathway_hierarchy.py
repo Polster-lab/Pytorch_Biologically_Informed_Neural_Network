@@ -201,7 +201,7 @@ def get_masking(pathway_names, pathway_genes, relations_file_name, train_x, test
             for node in layers_relationship[i - 1][n]:
                 if node in layers_node[i + 1]:
                     masking[i].loc[n, node] = 1
-
+    masking_df = masking.copy()
     gene_in_network = list(masking[n_hidden].columns)
     train_x = train_x.loc[gene_in_network, :]
     test_x = test_x.loc[gene_in_network, :]
@@ -209,4 +209,4 @@ def get_masking(pathway_names, pathway_genes, relations_file_name, train_x, test
     for i in range(len(masking) - 1):
         masking[i] = np.array(masking[i + 1])
     del masking[len(masking) - 1]
-    return masking, layers_node, train_x, test_x, val_x
+    return masking, masking_df,layers_node, train_x, test_x, val_x
