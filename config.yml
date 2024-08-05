@@ -15,7 +15,7 @@ train:
   epochs: 50
   learning_rate: 0.001
   weight_decay: 0.0001
-  batch_size: 2048
+  batch_size: 8192
 
 gene_expression:
   highly_expressed_threshold: 0.95

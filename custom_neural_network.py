@@ -48,7 +48,7 @@ class CustomNetwork(nn.Module):
             x = x.squeeze(2)
             x = torch.tanh(x)
             '''
-            x = torch.relu(x)
+            x = torch.tanh(x)
             #print('x shape: ',x.shape)
         #print(x.shape)
         
