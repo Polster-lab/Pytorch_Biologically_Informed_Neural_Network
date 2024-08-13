@@ -307,6 +307,22 @@ def main():
     v_data_tmp = val.T
     r_label_tmp = y_train
 
+    pathway_relation, ensemble_pathway_relation = return_threshold_pathways(config['pathways_network']['pathway_relation'], 
+                                  config['pathways_network']['ensemble_pathway_relation'],  config['pathways_network']['h_thresh'],\
+                                      config['pathways_network']['l_thresh'])
+
+    if os.path.exists(config['pathways_network']['pathway_relation_updated']):
+        os.remove(config['pathways_network']['pathway_relation_updated'])
+
+    if os.path.exists(config['pathways_network']['ensemble_pathway_relation_updateds']):
+        os.remove(config['pathways_network']['ensemble_pathway_relation_updated'])
+
+    pathway_relation.to_csv(config['pathways_network']['pathway_relation_updated'], sep = '\t', index = False, header= False)
+    ensemble_pathway_relation.to_csv(config['pathways_network']['ensemble_pathway_relation_updated'], sep = '\t', index = False, header= False)
+
+
+
+
     print('Getting Marker Genes.......')
     train_x, test_x, val_x, train_y = get_expression(r_data_tmp,
                                                 q_data_tmp,
@@ -318,13 +334,13 @@ def main():
                                                 marker=config['gene_expression']['marker'])
     
     print('Getting Pathway Genes.........')
-    pathway_genes = get_gene_pathways(config['pathways_network']['ensemble_pathway_relation'], species=config['pathways_network']['species'])
+    pathway_genes = get_gene_pathways(config['pathways_network']['ensemble_pathway_relation_updated'], species=config['pathways_network']['species'])
 
 
     print('Getting Masking.........')
     masking, masking_df, layers_node, train_x, test_x,val_x = get_masking(config['pathways_network']['pathway_names'],
                                                         pathway_genes,
-                                                        config['pathways_network']['pathway_relation'],
+                                                        config['pathways_network']['pathway_relation_updated'],
                                                         train_x,
                                                         test_x,
                                                         val_x,

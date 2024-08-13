@@ -3,6 +3,19 @@ import pandas as pd
 import re
 import biomart
 
+def return_threshold_pathways(pathway_relation, ensemble_pathway_relation, h_thresh= 0.9, l_thresh = 0.1):
+    pathway_relation = pd.read_csv(pathway_relation, sep='\t', header = None)
+    ensemble_pathway_relation = pd.read_csv(ensemble_pathway_relation, sep='\t', header = None)
+    print(ensemble_pathway_relation)
+    value_counts = ensemble_pathway_relation[1].value_counts()
+    df = pd.DataFrame(ensemble_pathway_relation[1].value_counts())
+    df_tmp = df[ (df['count']<=value_counts.quantile(h_thresh)) & (df['count']>=value_counts.quantile(l_thresh))]
+    x = df_tmp.index.tolist()
+    ensemble_pathway_relation = ensemble_pathway_relation[ensemble_pathway_relation[1].isin(x)]
+    pathway_relation = pathway_relation[pathway_relation[0].isin(x)]
+    return pathway_relation, ensemble_pathway_relation
+
+
 
 def symbol_to_ensembl(dt, species='mouse'):
     server = biomart.BiomartServer('http://useast.ensembl.org/biomart')

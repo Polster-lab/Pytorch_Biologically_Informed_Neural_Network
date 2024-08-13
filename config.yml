@@ -31,6 +31,10 @@ pathways_network:
   pathway_names: '../../usman/CellTICS/reactome/ReactomePathways.txt'
   ensemble_pathway_relation: '../../usman/CellTICS/reactome/Ensembl2Reactome_All_Levels.txt'
   datatype: 'diagnosis'
+  h_thresh: 0.9
+  l_thresh: 0.1
+  pathway_relation_updated: '../../usman/CellTICS/reactome/Subset_reactomePathwaysRelation.txt'
+  ensemble_pathway_relation_updated: '../../usman/CellTICS/reactome/Subset_Ensembl2Reactome_All_Levels.txt'
 
 
 
