@@ -1,0 +1,40 @@
+# config.yml
+dataset:
+  train: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/Preprocessed_data/excitory_neurons/train.csv'
+  test: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/Preprocessed_data/excitory_neurons/test.csv'
+  val: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/Preprocessed_data/excitory_neurons/val.csv'
+  y_train: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/Preprocessed_data/excitory_neurons/y_train.csv'
+  y_test: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/Preprocessed_data/excitory_neurons/y_test.csv'
+  y_val: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/Preprocessed_data/excitory_neurons/y_val.csv'
+
+
+model_output: 
+  model_save_dir: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/model_save/excitory_neurons/Exc_Neu/'
+
+train:
+  epochs: 100
+  learning_rate: 0.01
+  weight_decay: 0.001
+  batch_size: 200000
+
+gene_expression:
+  highly_expressed_threshold: 0
+  lowly_expressed_threshold: 0
+  normalization: True
+  marker: False
+  print_information: True
+
+pathways_network:
+  species: 'human'
+  n_hidden_layer: 4
+  pathway_relation: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/ReactomePathwaysRelation.txt'
+  pathway_names: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/ReactomePathways.txt'
+  ensemble_pathway_relation: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/Ensembl2Reactome_All_Levels.txt'
+  datatype: 'diagnosis'
+  h_thresh: 0.9
+  l_thresh: 0.0
+  pathway_relation_updated: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/Subset_reactomePathwaysRelation_v2.txt'
+  ensemble_pathway_relation_updated: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/Subset_Ensembl2Reactome_All_Levels_v2.txt'
+
+
+
