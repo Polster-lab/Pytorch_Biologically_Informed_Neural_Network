@@ -31,7 +31,7 @@ pathways_network:
   pathway_names: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/ReactomePathways.txt'
   ensemble_pathway_relation: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/Ensembl2Reactome_All_Levels.txt'
   datatype: 'diagnosis'
-  h_thresh: 0.9
+  h_thresh: 1
   l_thresh: 0.0
   pathway_relation_updated: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/Subset_reactomePathwaysRelation_v2.txt'
   ensemble_pathway_relation_updated: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/Subset_Ensembl2Reactome_All_Levels_v2.txt'
