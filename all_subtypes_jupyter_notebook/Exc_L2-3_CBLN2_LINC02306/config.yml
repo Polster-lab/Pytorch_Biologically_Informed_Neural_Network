@@ -26,7 +26,7 @@ gene_expression:
 
 pathways_network:
   species: 'human'
-  n_hidden_layer: 6
+  n_hidden_layer: 3
   pathway_relation: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/ReactomePathwaysRelation.txt'
   pathway_names: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/ReactomePathways.txt'
   ensemble_pathway_relation: '/12tb_dsk2/danish/Pytorch_Biologically_Informed_Neural_Network/reactome/Ensembl2Reactome_All_Levels.txt'
